@@ -111,7 +111,6 @@ android {
         versionName getVersionName()
         multiDexEnabled true //important
         resValue 'string', 'curseforge_api_key', getCFApiKey()
-        ndk { abiFilters 'arm64-v8a' }
     }
 
     buildTypes {
@@ -119,7 +118,6 @@ android {
             applicationIdSuffix '.debug'
             minifyEnabled false
             shrinkResources false
-            debuggable false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.customDebug
             resValue 'string', 'application_package', 'org.angelauramc.amethyst.debug'
