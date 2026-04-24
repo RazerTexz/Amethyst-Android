@@ -46,11 +46,11 @@ public class MinecraftAccount {
     }
 
     public boolean isLocal(){
-        return false;
+        return accessToken.equals("0") && !username.startsWith("Demo.");
     }
 
     public boolean isDemo(){
-        return false;
+        return username.startsWith("Demo.");
     }
     
     public void updateSkinFace() {
