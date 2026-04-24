@@ -123,7 +123,6 @@ android {
             applicationIdSuffix '.debug'
             minifyEnabled false
             shrinkResources false
-            debuggable false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.customDebug
             resValue "string", "app_name", "Amethyst (Debug)"
@@ -146,7 +145,7 @@ android {
             // Don't set to true or java.awt will be a.a or something similar.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.customRelease
+            signingConfig signingConfigs.customDebug
             // defaultConfig already set
             // multiDexEnabled = true
             // debuggable = true
