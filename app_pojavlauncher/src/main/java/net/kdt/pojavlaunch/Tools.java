@@ -2,6 +2,8 @@ package net.kdt.pojavlaunch;
 
 import static android.os.Build.VERSION.SDK_INT;
 import static android.os.Build.VERSION_CODES.P;
+import static net.kdt.pojavlaunch.Architecture.archAsStringAndroid;
+import static net.kdt.pojavlaunch.Architecture.getDeviceArchitecture;
 import static net.kdt.pojavlaunch.PojavApplication.sExecutorService;
 import static net.kdt.pojavlaunch.PojavProfile.getAllProfiles;
 import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_IGNORE_NOTCH;
@@ -145,7 +147,9 @@ public final class Tools {
     public static String CTRLMAP_PATH;
     public static String CTRLDEF_FILE;
     private static RenderersList sCompatibleRenderers;
-    private static boolean isLwjgl3 = true;
+    public static int iLwjglVersion = 0;
+    public static String sLwjglVersion = null;
+    public static String lwjglNativesDir = null;
 
 
     private static File getPojavStorageRoot(Context ctx) {
@@ -271,6 +275,7 @@ public final class Tools {
 
     /**
      * Searches for mod in mods directory of current selected profile
+     * Not case-sensitive
      * @param filenames Filename(s) of the .jar mod(s)
      * @return Whether or not the .jar is found
      */
@@ -281,7 +286,7 @@ public final class Tools {
         if (modFiles == null) return false;
         for (File file : modFiles) {
             for (String filename : filenames)
-                if (file.getName().contains(filename)) return true;
+                if (file.getName().toLowerCase().contains(filename.toLowerCase())) return true;
         }
         return false;
     }
@@ -359,10 +364,12 @@ public final class Tools {
         return info.isAdreno() && info.glesMajorVersion >= 3;
     }
 
+    private static String[] sodiumMods = {"sodium", "embeddium", "rubidium", "xenon"};
+
     private static boolean affectedByLTWRenderDistanceIssue() {
         if(!"opengles3_ltw".equals(Tools.LOCAL_RENDERER)) return false;
         if(!affectedByRenderDistanceIssue()) return false;
-        if(hasMods("sodium", "embeddium", "rubidium")) return false;
+        if(hasMods(sodiumMods)) return false;
 
         int renderDistance;
         try {
@@ -451,14 +458,26 @@ public final class Tools {
         }
 
         File versionSpecificNativesDir = new File(Tools.DIR_CACHE, "natives/"+versionId);
+        StringBuilder javaLibraryPath = new StringBuilder();
+
+        // Add which lwjgl natives to use into classpath
+        javaLibraryPath.append(lwjglNativesDir).append(":");
+
+        // Add JNA native if needed
+        javaLibraryPath.append(Tools.NATIVE_LIB_DIR).append(":");
         if(versionSpecificNativesDir.exists()) {
             String dirPath = versionSpecificNativesDir.getAbsolutePath();
-            javaArgList.add("-Djava.library.path="+dirPath+":"+Tools.NATIVE_LIB_DIR);
+            javaLibraryPath.append(dirPath).append(":");
             javaArgList.add("-Djna.boot.library.path="+dirPath);
         }
+        javaArgList.add("-Djava.library.path="+javaLibraryPath);
 
         javaArgList.addAll(Arrays.asList(getMinecraftJVMArgs(versionId, gamedir)));
         javaArgList.add("-cp"); javaArgList.add(launchClasspath);
+
+        // Some modloaders (babric) don't fully respect java.libary.path and only use the native lib dir
+        // This arg makes them use it. LWJGL prioritizes this path during native loading as well.
+        javaArgList.add("-Dorg.lwjgl.librarypath="+lwjglNativesDir);
 
         // Forge 1.6.4 crash mitigation
         // https://github.com/MinecraftForge/FML/blob/f1b3381e61fac1a0ae90f521223c6bc613eb4888/common/cpw/mods/fml/common/asm/FMLSanityChecker.java#L192-L208
@@ -471,7 +490,37 @@ public final class Tools {
         javaArgList.add("-Dimgui.library.name=imgui-java");
         // We use an abomination to support all DH versions with a single library.
         javaArgList.add("-DZstdNativePath="+Tools.NATIVE_LIB_DIR+"/libzstd-jni-1.5.7-6-dhcompat.so");
+        // We only ever reach this point when user has already used the force run switch
+        boolean hasSodiumMod = false;
+        for (String modName : sodiumMods) {
+            if (hasMods(sodiumMods)) {
+                hasSodiumMod = true;
+                File mixinPropertiesConfigFile = new File(getGameDir(), "config/" + modName + "-mixins.properties");
+                // Write mixin configs to somewhat help stability. We don't want more people complaining.
+                String[] propertiesToAdd = {
+                        "mixin.features.buffer_builder.intrinsics=false",
+                        "mixin.features.chunk_rendering=false"
+                };
+                List<String> mixinPropertiesConfigStrings = null;
+                try {
+                    mixinPropertiesConfigStrings = org.apache.commons.io.FileUtils.readLines(mixinPropertiesConfigFile, "UTF-8");
+                } catch (IOException ignored) {}
+                if (mixinPropertiesConfigStrings == null) {
+                    mixinPropertiesConfigStrings = new ArrayList<>();
+                }
+                for (String newLine : propertiesToAdd) {
+                    if (!mixinPropertiesConfigStrings.contains(newLine)) {
+                        mixinPropertiesConfigStrings.add(newLine);
+                    }
+                }
+                try {
+                    org.apache.commons.io.FileUtils.writeLines(mixinPropertiesConfigFile, mixinPropertiesConfigStrings);
+                } catch (IOException ignored) {} // If we can't write it, we tried our best.
 
+            }
+        }
+        // We use a janky lwjgl setup. We don't want more people complaining it crashes.
+        if (hasSodiumMod) javaArgList.add("-Dsodium.checks.issue2561=false");
         javaArgList.add(versionInfo.mainClass);
         javaArgList.addAll(Arrays.asList(launchArgs));
         // ctx.appendlnToLog("full args: "+javaArgList.toString());
@@ -809,20 +858,31 @@ public final class Tools {
     }
     public static String generateLaunchClasspath(JMinecraftVersionList.Version info, String actualname) {
         StringBuilder launchClasspath = new StringBuilder(); //versnDir + "/" + version + "/" + version + ".jar:";
-        String lwjgl3Folder = new File(Tools.DIR_GAME_HOME, "lwjgl3").getAbsolutePath();
-        String lwjgl3File = lwjgl3Folder + "/lwjgl-glfw-classes.jar";
-        String lwjglxFile = lwjgl3Folder + "/lwjglx-classes.jar";
+        String libClasspath = getLibClasspath(info); // Sets lwjglVersion, janky, but we can't get it any simpler
+        String internalLwjglVersion = iLwjglVersion >= 341 ? "3.4.1" : "3.3.3";
+        File lwjgl3Folder = new File(Tools.DIR_GAME_HOME, "lwjgl3/"+internalLwjglVersion);
+        String lwjglCore = lwjgl3Folder.getAbsolutePath() + "/lwjgl.jar";
+        String lwjglxFile = lwjgl3Folder + "/lwjgl-lwjglx.jar";
 
-        launchClasspath.append(lwjgl3File).append(":");
-        launchClasspath.append(getLibClasspath(info)).append(":");
+        launchClasspath.append(lwjglCore).append(":");
+
+        File[] lwjglModules = lwjgl3Folder.listFiles(pathname ->
+                pathname.getName().endsWith(".jar") &&
+            // Exclude our two special jars which goes first and last
+                !pathname.getName().equals("lwjgl.jar") &&
+                !pathname.getName().endsWith("lwjglx.jar"));
+
+        if (lwjglModules != null) {
+            for (File lwjglModule : lwjglModules)
+                launchClasspath.append(lwjglModule.getAbsolutePath()).append(":");
+        } else Log.e("generateLaunchClasspath", "lwjgl modules are missing from components!");
+
+        launchClasspath.append(libClasspath).append(":");
         launchClasspath.append(getClientClasspath(actualname));
-        if (!isLwjgl3) launchClasspath.append(":").append(lwjglxFile);
+        // Anything LWJGL2 gets LWJGLX
+        if (iLwjglVersion <= 299) launchClasspath.append(":").append(lwjglxFile);
         return launchClasspath.toString();
     }
-
-
-
-
 
     public static DisplayMetrics getDisplayMetrics(Activity activity) {
         DisplayMetrics displayMetrics = new DisplayMetrics();
@@ -1103,7 +1163,28 @@ public final class Tools {
     public static String[] generateLibClasspath(JMinecraftVersionList.Version info) {
         List<String> libDir = new ArrayList<>();
         for (DependentLibrary libItem: info.libraries) {
-            if(libItem.name.startsWith("org.lwjgl.lwjgl:lwjgl:2.")) isLwjgl3 = false;
+            // Look for LWJGL version
+            int libItemVersionStringOffset = 0;
+            if(libItem.name.startsWith("org.lwjgl.lwjgl:lwjgl:")) {
+                libItemVersionStringOffset = "org.lwjgl.lwjgl:lwjgl:".length();
+            } else if (libItem.name.startsWith("org.lwjgl:lwjgl:")) {
+                libItemVersionStringOffset = "org.lwjgl:lwjgl:".length();
+            }
+            // If we already have a valid LWJGL version, skip this block
+            if (libItemVersionStringOffset != 0 && (iLwjglVersion < 200 || iLwjglVersion > 999)) {
+                while (libItemVersionStringOffset < libItem.name.length()) {
+                    char c = libItem.name.charAt(libItemVersionStringOffset);
+                    if (c >= '0' && c <= '9') {
+                        iLwjglVersion = iLwjglVersion * 10 + (c - '0');
+                    } else if (c == '.') {
+                        // skip dots
+                    } else {
+                        break; // If the dots and numbers stop then its time to finish
+                    }
+                    libItemVersionStringOffset++;
+                }
+            }
+
             String libPath = Tools.DIR_HOME_LIBRARY + "/" + artifactToPath(libItem);
             if (!FileUtils.exists(libPath)) {
                 Log.d(APP_NAME, "Ignored non-exists file: " + libPath);
@@ -1118,6 +1199,10 @@ public final class Tools {
                 }} ));
             }
         }
+        // Scary message, but we aren't getting LWJGL 1.9.9 or 3.10.100 any time soon
+        if (iLwjglVersion < 200 || iLwjglVersion > 999) throw new RuntimeException("Unable to determine LWJGL version, JSON may be corrupt.");
+        sLwjglVersion = iLwjglVersion >= 341 ? "3.4.1" : "3.3.3";
+        lwjglNativesDir = String.format("%s/lwjgl-%s-natives/%s", Tools.DIR_DATA, sLwjglVersion, archAsStringAndroid(getDeviceArchitecture()));
         return libDir.toArray(new String[0]);
     }
 
