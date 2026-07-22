@@ -507,5 +507,6 @@
     <string name="global_installing">Installing…</string>
     <string name="error_key_unsupported">Error! The key assigned to this button is invalid. Did you try updating?</string>
     <string name="error_invalid_value">Error! Invalid value!</string>
+    <string name="minecraft_no_username_set">Your Minecraft username is not set! You must set it in the Minecraft website before being able to log in!</string>
 
 </resources>
