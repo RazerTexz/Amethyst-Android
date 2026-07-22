@@ -89,7 +89,7 @@ public class MicrosoftBackgroundLogin {
                 if (!hasProfile && doesOwnGame) {
                     throw new PresentedException(R.string.minecraft_no_username_set);
                 } else if (!doesOwnGame) {
-                    mcName = "Demo.Player";
+                    mcName = "Player";
                     mcUuid = "00000000-0000-0000-0000-000000000000";
                 } else if (mcName == null || mcUuid == null)
                     throw new IllegalStateException("This should never happen, please report this as a bug");
