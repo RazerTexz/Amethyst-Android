@@ -241,6 +241,7 @@ public class JREUtils {
                 envMap.put("MESA_GLSL_VERSION_OVERRIDE","460");
             }
         }
+
         if(LauncherPreferences.PREF_BIG_CORE_AFFINITY) envMap.put("POJAV_BIG_CORE_AFFINITY", "1");
         envMap.put("AWTSTUB_WIDTH", Integer.toString(CallbackBridge.windowWidth > 0 ? CallbackBridge.windowWidth : CallbackBridge.physicalWidth));
         envMap.put("AWTSTUB_HEIGHT", Integer.toString(CallbackBridge.windowHeight > 0 ? CallbackBridge.windowHeight : CallbackBridge.physicalHeight));
@@ -305,8 +306,18 @@ public class JREUtils {
         JREUtils.relocateLibPath(runtime, runtimeHome);
 
         setJavaEnvironment(activity, runtimeHome);
-
         final String graphicsLib = loadGraphicsLibrary();
+
+        // Has to run after SDL env vars are set
+        try {
+            if (graphicsLib != null)
+                Os.setenv("SDL_OPENGL_LIBRARY", graphicsLib, true);
+            if (Os.getenv("POJAVEXEC_EGL") != null)
+                Os.setenv("SDL_EGL_LIBRARY", NATIVE_LIB_DIR+"/"+Os.getenv("POJAVEXEC_EGL"), true);
+        } catch (ErrnoException e) {
+            Log.wtf("RENDER_LIBRARY", "Failed to load set SDL env vars");
+        }
+
         List<String> userArgs = getJavaArgs(activity, runtimeHome, userArgsString);
 
         //Remove arguments that can interfere with the good working of the launcher
@@ -505,6 +516,15 @@ public class JREUtils {
                 Log.w("RENDER_LIBRARY", "No renderer selected, defaulting to opengles2");
                 renderLibrary = "libng_gl4es.so";
                 break;
+        }
+        // Has to run before dlopening mobileglues
+        if(LOCAL_RENDERER.equals("opengles_mobileglues")){
+            try {
+                Os.setenv("MG_DIR_PATH", Tools.DIR_DATA + "/MobileGlues", true);
+                Os.setenv("POJAVEXEC_EGL",renderLibrary, true);
+            } catch (ErrnoException e) {
+                Log.wtf("RENDER_LIBRARY", "Failed to load MobileGlues settings");
+            }
         }
 
         if (!dlopen(renderLibrary) && !dlopen(findInLdLibPath(renderLibrary))) {

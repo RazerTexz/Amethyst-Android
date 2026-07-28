@@ -508,5 +508,14 @@
     <string name="error_key_unsupported">Error! The key assigned to this button is invalid. Did you try updating?</string>
     <string name="error_invalid_value">Error! Invalid value!</string>
     <string name="minecraft_no_username_set">Your Minecraft username is not set! You must set it in the Minecraft website before being able to log in!</string>
+    <string name="create_lwjgl3ify_profile">Create LWJGL3ify profile</string>
+    <string name="select_lwjgl3ify_version">Select LWJGL3ify version</string>
+    <string name="lwjgl3ify_installer_available_versions">Supported LWJGL3IFY versions</string>
+    <string name="lwjgl3ify_installer_broken_versions">Broken LWJGL3ify versions (SDL)</string>
+    <string name="new_default_controls">Extracted new default controls into new_default.json. Try it out!</string>
+    <string name="import_modpack_start">Importing modpack…</string>
+    <string name="import_modpack_hash">Hashing modpack file… (%s MB/ %s MB)</string>
+    <string name="import_modpack_json">Reading modpack info…</string>
+    <string name="import_modpack_copy">Copying modpack file to cache… (%s MB/ %s MB)</string>
 
 </resources>

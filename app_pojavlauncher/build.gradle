@@ -50,9 +50,9 @@ def getVersionName = {
 
     def isRelease = project.gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
     if(!isRelease){
-        return TAG_STRING.trim().replace("-g", "-") + "-" + semVer + "-debug"
+        return TAG_STRING.trim().replace("-g", "-") + "-" + "debug-" + semVer
     }else {
-        return TAG_STRING.trim().replace("-g", "-") + "-" + semVer + "-release"
+        return TAG_STRING.trim().replace("-g", "-") + "-" + "release-" + semVer
     }
 }
 

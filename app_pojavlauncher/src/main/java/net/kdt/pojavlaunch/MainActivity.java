@@ -501,6 +501,10 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         Tools.runOnUiThread(()-> mServiceBinder.isActive = false);
     }
 
+    public void setmLastIndex(int a){
+        mHotbarView.setmLastIndex(a);
+    }
+
     private void dialogSendCustomKey() {
         AlertDialog.Builder dialog = new AlertDialog.Builder(this);
         dialog.setTitle(R.string.control_customkey);
