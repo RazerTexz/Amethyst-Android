@@ -14,6 +14,7 @@ DECL_DLSYM(SDL_InitSubSystem)
 DECL_DLSYM(SDL_SetHint);
 DECL_DLSYM(SDL_SetTextInputArea);
 DECL_DLSYM(SDL_SetError);
+DECL_DLSYM(SDL_GetError);
 
 
 static bool custom_SDL_InitSubSystem_Func(SDL_InitFlags flags) {
@@ -43,6 +44,10 @@ static bool custom_SDL_InitSubSystem_Func(SDL_InitFlags flags) {
 
     // Call original func after doing all the needed setup
     bool r = BYTEHOOK_CALL_PREV(custom_SDL_InitSubSystem_Func, SDL_InitSubSystem_t, flags);
+    if (!r){
+        SET_DLSYM_PTR(dlopen("libSDL3.so", RTLD_NOLOAD), SDL_GetError);
+        LOGI("Amethyst-Android: SDL_InitSubsystem Error: %s", SDL_GetError_p());
+    }
     BYTEHOOK_POP_STACK();
     return r;
 }

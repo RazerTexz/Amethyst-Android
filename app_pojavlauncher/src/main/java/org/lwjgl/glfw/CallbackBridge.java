@@ -220,11 +220,11 @@ public class CallbackBridge {
     }
 
     // Notification types
-    private static final int NOTIF_TYPE_SDL = 0;
+    public static final int NOTIF_TYPE_SDL = 0;
 
     // Notification actions
-    private static final int ACTION_INIT_LAUNCHER_INTEGRATION = 0;
-    private static final int ACTION_SEND_TEXTBOX_RECT = 1;
+    public static final int ACTION_INIT_LAUNCHER_INTEGRATION = 0;
+    public static final int ACTION_SEND_TEXTBOX_RECT = 1;
     /**
      * Used for any sort of notification that needs to be given from the JRE side
      * @return if notification successful

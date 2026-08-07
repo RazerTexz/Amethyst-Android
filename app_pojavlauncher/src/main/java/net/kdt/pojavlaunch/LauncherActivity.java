@@ -10,8 +10,10 @@ import android.Manifest;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
@@ -60,11 +62,14 @@ import net.kdt.pojavlaunch.value.launcherprofiles.LauncherProfiles;
 import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.List;
+import java.util.Locale;
 
 public class LauncherActivity extends BaseActivity {
     public static final String SETTING_FRAGMENT_TAG = "SETTINGS_FRAGMENT";
@@ -78,14 +83,42 @@ public class LauncherActivity extends BaseActivity {
                 if(data != null) {
                     PojavApplication.sExecutorService.execute(() -> {
                         try {
-                            ModLoader loaderInfo = new CommonApi(getString(R.string.curseforge_api_key)).importModpack(this, data);
+                            // Copy ZIP file to cache
+                            long fileSize = -1;
+                            try (Cursor returnCursor = getContentResolver().query(data, new String[]{OpenableColumns.SIZE}, null, null, null)) {
+                                if (returnCursor != null && returnCursor.moveToFirst()) {
+                                    fileSize = returnCursor.getLong(0);
+                                }
+                            }
+                            File modpackFile = new File(Tools.DIR_CACHE, "import_modpack_placeholdername.cf");
+                            try (InputStream inputStream = getContentResolver().openInputStream(data)){
+                                FileOutputStream output = new FileOutputStream(modpackFile);
+                                byte[] b = new byte[262144];
+                                int read;
+                                int readTotal = 0;
+                                while ((read = inputStream.read(b)) != -1) {
+                                    output.write(b, 0, read);
+                                    readTotal += read;
+                                    String readMB = fileSize > 0 ? String.format(Locale.US, "%.2f", readTotal / (1024.0 * 1024.0)) : "unknown";
+                                    String totalMB = fileSize > 0 ? String.format(Locale.US, "%.2f", fileSize / (1024.0 * 1024.0)) : "unknown";
+                                    int progress = fileSize > 0 ? (int) ((readTotal * 100L) / fileSize) : 0;
+                                    ProgressLayout.setProgress(ProgressLayout.INSTALL_MODPACK, progress, R.string.import_modpack_copy, readMB, totalMB);
+                                }
+                                output.flush();
+                                output.close();
+                            }
+                            ModLoader loaderInfo = new CommonApi(getString(R.string.curseforge_api_key)).importModpack(modpackFile);
+                            modpackFile.delete();
                             if (loaderInfo == null) return;
                             loaderInfo.getDownloadTask(new NotificationDownloadListener(this, loaderInfo)).run();
                         } catch (IOException e) {
                             Tools.showErrorRemote(this, R.string.modpack_install_download_failed, e);
+                            ProgressLayout.clearProgress(ProgressLayout.INSTALL_MODPACK);
                         } catch (IllegalArgumentException e) {
                             Tools.showError(this, R.string.not_modpack_file, e);
+                            ProgressLayout.clearProgress(ProgressLayout.INSTALL_MODPACK);
                         } catch (NoSuchAlgorithmException e) {
+                            ProgressLayout.clearProgress(ProgressLayout.INSTALL_MODPACK);
                             // Should literally never happen because SHA-1 is required Java spec
                             throw new RuntimeException(e);
                         }
@@ -138,7 +171,7 @@ public class LauncherActivity extends BaseActivity {
     };
 
     private final ExtraListener<Boolean> mLaunchGameListener = (key, value) -> {
-        if(mProgressLayout.hasProcesses()){
+        if(ProgressLayout.hasProcesses()){
             Toast.makeText(this, R.string.tasks_ongoing, Toast.LENGTH_LONG).show();
             return false;
         }

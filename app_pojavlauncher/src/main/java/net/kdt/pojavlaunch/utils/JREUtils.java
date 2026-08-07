@@ -267,6 +267,9 @@ public class JREUtils {
             envMap.put("POJAV_LOAD_TURNIP", "1");
         }
 
+        envMap.put("DALVIK_APPLICATION", Tools.jObjectToString(activity.getApplication()));
+        envMap.put("DALVIK_JAVAVM", String.valueOf(Tools.getJavaVMPointer()));
+
         readCustomEnv(envMap); // Must be last so it overrides anything the user sets for obvious reasons.
 
         for (Map.Entry<String, String> env : envMap.entrySet()) {

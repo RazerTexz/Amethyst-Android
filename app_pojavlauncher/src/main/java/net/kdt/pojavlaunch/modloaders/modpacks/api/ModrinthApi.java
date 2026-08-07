@@ -160,8 +160,8 @@ public class ModrinthApi implements ModpackApi{
     }
 
     @Override
-    public ModLoader importModpack(Activity activity, Uri zipUri) throws IOException, NoSuchAlgorithmException {
-        return ModpackInstaller.importModpack(activity, zipUri, this::installMrpack);
+    public ModLoader importModpack(File modpackFile) throws IOException, NoSuchAlgorithmException {
+        return ModpackInstaller.importModpack(modpackFile, Constants.SOURCE_MODRINTH, this::installMrpack);
     }
 
     private static ModLoader createInfo(ModrinthIndex modrinthIndex) {

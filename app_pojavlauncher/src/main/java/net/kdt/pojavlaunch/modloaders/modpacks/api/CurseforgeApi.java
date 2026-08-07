@@ -176,8 +176,8 @@ public class CurseforgeApi implements ModpackApi{
     }
 
     @Override
-    public ModLoader importModpack(Activity activity, Uri zipUri) throws IOException, NoSuchAlgorithmException {
-        return ModpackInstaller.importModpack(activity, zipUri, this::installCurseforgeZip);
+    public ModLoader importModpack(File modpackFile) throws IOException, NoSuchAlgorithmException {
+        return ModpackInstaller.importModpack(modpackFile, Constants.SOURCE_CURSEFORGE, this::installCurseforgeZip);
     }
 
 
